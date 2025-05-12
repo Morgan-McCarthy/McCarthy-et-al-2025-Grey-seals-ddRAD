@@ -1,0 +1,13 @@
+module load angsd
+
+
+output=angsd.depths.global.no.shetland
+chrs=autosomes.txt
+ref=Halichoerus_grypus_HiC.fasta
+bamlist=bam_list
+sites=sites.txt
+threads=10
+mapq=30
+baseq=30
+
+angsd -bam ${bamlist} -rf ${chrs} -sites ${sites} -nThreads ${threads} -dumpCounts 1 -doDepth 1 -doCounts 1 -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -minMapQ ${mapq} -minQ ${baseq} -out ${output}
