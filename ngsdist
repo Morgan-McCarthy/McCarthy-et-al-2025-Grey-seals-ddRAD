@@ -1,0 +1,23 @@
+#Prepare the input file
+
+module load angsd
+bamlist=bamlist.txt
+out=ngsdist.prep
+chr=autosomes.txt
+sites=final_filtered_global
+
+module load angsd
+
+inds=142
+angsd -GL 1 -rf ${chr} -sites ${sites} -out ${out}.${inds} -doMaf 1 -SNP_pval 1e-6 -nThreads 15 -minMaf 0.05 -doGlf 2 -doMajorMinor 1 -minInd ${inds} -bam ${bamlist} -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -minMapQ 30 -minQ 30
+
+#Run ngsdist
+/projects/mjolnir1/apps/ngsDist/ngsDist --n_threads 10 --seed 12345 --verbose 1 --geno ngsdist.prep.beagle.gz --probs --n_ind 189 --n_sites 3793 --labels labels.for.plotting --out ngs.dist.pairwise.delete --boot_block_size 500 --n_boot_rep 100 --pairwise_del
+
+#Run fastme
+module load fastme
+input=ngs.dist.pairwise.delete 
+output=hg_fastme_tree.nwk
+
+#Here D (the number of bootstraps plus the base run)
+fastme -T 10 -i ${input} -s -D 101 -o ${output}
