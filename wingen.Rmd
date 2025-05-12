@@ -201,7 +201,7 @@ ggplot_gd(kgd)
 
 
 ```{r}
-map <- read_excel("~/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/grey.seal.map.data.xlsx")
+map <- read_excel("grey.seal.map.data.xlsx")
 aquamaps <- map
 
 ggplot() + 
