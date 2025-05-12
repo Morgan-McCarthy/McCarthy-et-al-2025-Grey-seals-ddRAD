@@ -6,9 +6,7 @@ output: html_notebook
 ```{r}
 library(ggplot2)
 library(terra)
-#library(raster)
 library(viridis)
-#library(sf)
 library(vcfR)
 library(readxl)
 library(dplyr)
@@ -21,25 +19,23 @@ library(wingen)
 ```{r}
 t2 <- data.frame(
   Locality = c("Belt Sea", "Christiansø", "The Sound", "Bothnian Bay", "Stockholm Archipelago", 
-               "Gulf of Finland", "Gulf of Riga", "Wadden Sea", "Shetland", "Kattegat", 
+               "Gulf of Finland", "Gulf of Riga", "Wadden Sea", "Kattegat", 
                "Iceland NW", "Iceland SE", "Kola", "Froan", "Isle of May", 
                "Wales", "USA", "Sable Island"),
   N = c(55.5, 55.3208, 55.75, 65.35, 59.5, 
-        60.0, 57.75, 54.0, 60.3333, 56.5, 
+        60.0, 57.75, 54.0, 56.5, 
         65.0, 63.686757, 68.84, 64.0, 56.171957, 
         52.1307, 41.36, 43.9333),
   E = c(11.5, 15.19, 12.75, 23.5, 18.8, 
-        26.0, 23.25, 8.0, -1.3333, 12.5, 
+        26.0, 23.25, 8.0, 12.5, 
         -23.0, -16.139646, 38.85, 9.0, -2.384806, 
         -3.7837, -70.24, -59.9167),
   col = c("#B22222", "#B22222", "#B22222", "#B22222", "#B22222", 
-          "#B22222", "#B22222", "#FF8C00", "#FF8C00", "#FF8C00", 
+          "#B22222", "#B22222", "#FF8C00", "#FF8C00", 
           "#FF8C00", "#FF8C00", "#FF8C00", "#FF8C00", "#FF8C00", 
           "#FF8C00", "#5F9EA0", "#5F9EA0")
 )
 
-t2 <- t2 %>%
-  filter(Locality != "Shetland")
 
 locations <- t2
 # load world map
@@ -92,24 +88,18 @@ sample_map
 
 ```{r}
 #Merge all the metadata with the mapping statistics
-grey_seal_meta <- read_excel("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Figures and Tables/grey_seal_meta.xlsx")
-mapping_stats <- read_excel("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Figures and Tables/mapping.stats.xlsx")
-depth_of_3_wo_harbour_seals_outliers <- read.table("~/Documents/Manuscripts/2022/Grey seal/ddRAD/Figures and Tables/depth_of_3_wo_harbour_seals_outliers_bam_list", quote="\"", comment.char="")
+grey_seal_meta <- read_excel("grey_seal_meta.xlsx")
+mapping_stats <- read_excel("mapping.stats.xlsx")
+depth_of_3_wo_harbour_seals_outliers <- read.table("bam_list", quote="\"", comment.char="")
 colnames(depth_of_3_wo_harbour_seals_outliers) <- c("Bam_file")
 
 depth_with_metadata <- full_join(grey_seal_meta, mapping_stats, by = "Sample_ID")
-
-#This step removes all samples from the Shetland Islands
-depth_with_metadata <- depth_with_metadata %>%
-  filter(Local8 != "Shetland") %>%
-  filter(Local8 != "Gulf of St Lawrence")
 ```
-
 
 
 ```{r}
 #Read in the vcf file
-vcf <- read.vcfR("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/angsd2vcf_no_shetland_output_no_HG589.vcf.recode.vcf")
+vcf <- read.vcfR("angsd2vcf_output.recode.vcf")
 
 samples_to_drop <- c("D01638_nuDNA_aligned_sorted", "D05320_nuDNA_aligned_sorted", "D00579_nuDNA_aligned_sorted")
 
