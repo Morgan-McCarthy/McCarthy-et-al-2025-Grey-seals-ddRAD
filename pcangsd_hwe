@@ -1,0 +1,12 @@
+module load miniconda 
+conda activate /projects/mjolnir1/apps/conda/pcangsd-0.98.2
+
+beagle_file=gl.global.beagle.gz
+output=HWE
+e=3
+
+pcangsd -beagle $beagle_file -inbreedSites -e $e -threads 5 -o $output/hwe_global_loci_e$e -sites_save
+
+beagle_file=gl.global.beagle.gz
+e=3
+pcangsd -beagle $beagle_file -e $e -hwe $output/hwe_global_loci_e3.lrt.sites.npy -hwe_tole 1e-6 -o pcangsd.HWE.global.loci.results
