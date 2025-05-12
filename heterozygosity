@@ -1,0 +1,27 @@
+module load angsd
+
+dir=cleaned_reads/
+chrs=autosomes.txt
+output=heterozygosity/
+ref=Halichoerus_grypus_HiC.fasta
+
+for file in ${dir}*_nuDNA_aligned_sorted.bam
+do
+file_short=`echo ${file} | cut -f9 -d "/"`
+ID=`echo ${file_short} | cut -f1 -d "_"`
+if [ -f "${ID}.saf.gz" ]
+then
+echo "${ID} exists"
+else 
+angsd -GL 1 -setMinDepthInd 10 -minmapq 30 -minq 30 -uniqueonly 1 -only_proper_pairs 1 -remove_bads 1 -docounts 1 -i ${file} -ref ${ref} -P 10 -out ${output}${ID} -doSaf 1 -anc ${ref} -rf ${chrs} -baq 2
+echo "${ID} does not exist"
+fi
+done
+
+
+module load angsd
+for file in *.saf.idx
+do
+ID=`echo ${file} | cut -f1 -d "."`
+realSFS ${file} -P 20 -fold 1 >> ${ID}.real.sfs
+done
