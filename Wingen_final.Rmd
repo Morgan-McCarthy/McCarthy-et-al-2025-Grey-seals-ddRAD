@@ -1,0 +1,469 @@
+---
+title: "Wingen final"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(terra)
+#library(raster)
+library(viridis)
+#library(sf)
+library(vcfR)
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(ggeasy)
+library(wingen)
+```
+
+
+```{r}
+t2 <- data.frame(
+  Locality = c("Belt Sea", "Christiansø", "The Sound", "Bothnian Bay", "Stockholm Archipelago", 
+               "Gulf of Finland", "Gulf of Riga", "Wadden Sea", "Shetland", "Kattegat", 
+               "Iceland NW", "Iceland SE", "Kola", "Froan", "Isle of May", 
+               "Wales", "USA", "Sable Island"),
+  N = c(55.5, 55.3208, 55.75, 65.35, 59.5, 
+        60.0, 57.75, 54.0, 60.3333, 56.5, 
+        65.0, 63.686757, 68.84, 64.0, 56.171957, 
+        52.1307, 41.36, 43.9333),
+  E = c(11.5, 15.19, 12.75, 23.5, 18.8, 
+        26.0, 23.25, 8.0, -1.3333, 12.5, 
+        -23.0, -16.139646, 38.85, 9.0, -2.384806, 
+        -3.7837, -70.24, -59.9167),
+  col = c("#B22222", "#B22222", "#B22222", "#B22222", "#B22222", 
+          "#B22222", "#B22222", "#FF8C00", "#FF8C00", "#FF8C00", 
+          "#FF8C00", "#FF8C00", "#FF8C00", "#FF8C00", "#FF8C00", 
+          "#FF8C00", "#5F9EA0", "#5F9EA0")
+)
+
+t2 <- t2 %>%
+  filter(Locality != "Shetland")
+
+locations <- t2
+# load world map
+
+world_map <- map_data("world", returnclass = "sf") %>%
+  as_tibble()
+
+shape_map <- c(
+  "Sable Island" = 1,
+  "USA" = 2,
+  "Iceland NW" = 3,
+  "Iceland SE" = 4,
+  "Kola" = 5,
+  "Froan" = 6,
+  "Isle of May" = 8,
+  "Wales" = 9,
+  "Wadden Sea" = 10,
+  "Kattegat" = 11,
+  "Belt Sea" = 12,
+  "The Sound" = 13,
+  "Christiansø" = 14,
+  "Stockholm Archipelago" = 1,
+  "Gulf of Riga" = 2,
+  "Gulf of Finland" = 3,
+  "Bothnian Bay" = 4
+)
+
+sample_map <- ggplot() +
+    geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "lightgrey", inherit.aes = FALSE) +
+    geom_point(data = t2, aes(x = E, y = N, shape = Locality), size = 2, alpha = 1) +
+    scale_shape_manual(values = shape_map) +
+    coord_sf(crs = "+proj=moll") +
+    expand_limits(x = world_map$long, y = world_map$lat) +
+    theme(panel.background = element_rect(fill = "white"),
+          plot.background = element_rect(fill = "white")) +
+    coord_cartesian(xlim = c(-80, 50), ylim = c(40, 70))
+
+
+sample_map <- sample_map +
+  coord_map("ortho", orientation = c(55, -20, 0), xlim = c(-72, 9), ylim = c(45, 90), clip = "on") +
+  theme(
+    axis.text = element_blank(),  # Remove axis text
+    axis.ticks = element_blank(), # Remove axis ticks
+    axis.title = element_blank()  # Remove axis titles
+  ) + 
+  easy_remove_legend()
+
+sample_map
+```
+
+```{r}
+#Merge all the metadata with the mapping statistics
+grey_seal_meta <- read_excel("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Figures and Tables/grey_seal_meta.xlsx")
+mapping_stats <- read_excel("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Figures and Tables/mapping.stats.xlsx")
+depth_of_3_wo_harbour_seals_outliers <- read.table("~/Documents/Manuscripts/2022/Grey seal/ddRAD/Figures and Tables/depth_of_3_wo_harbour_seals_outliers_bam_list", quote="\"", comment.char="")
+colnames(depth_of_3_wo_harbour_seals_outliers) <- c("Bam_file")
+
+depth_with_metadata <- full_join(grey_seal_meta, mapping_stats, by = "Sample_ID")
+
+#This step removes all samples from the Shetland Islands
+depth_with_metadata <- depth_with_metadata %>%
+  filter(Local8 != "Shetland") %>%
+  filter(Local8 != "Gulf of St Lawrence")
+```
+
+
+
+```{r}
+#Read in the vcf file
+vcf <- read.vcfR("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/angsd2vcf_no_shetland_output_no_HG589.vcf.recode.vcf")
+
+samples_to_drop <- c("D01638_nuDNA_aligned_sorted", "D05320_nuDNA_aligned_sorted", "D00579_nuDNA_aligned_sorted")
+
+# Drop the unwanted samples
+vcf_filtered <- vcf
+vcf_filtered@gt <- vcf@gt[, !(colnames(vcf@gt) %in% samples_to_drop), drop = FALSE]
+
+sample_names <- colnames(vcf_filtered@gt)  # Accessing the genotype matrix to get sample names
+print(sample_names)
+vcf <- vcf_filtered
+```
+
+
+```{r}
+library(stringr)
+#Inspect the sample names 
+sample_names <- colnames(vcf@gt)  # Accessing the genotype matrix to get sample names
+
+print(sample_names)
+
+coordinates <- t2 %>%
+  dplyr::select(Locality, E, N) %>%
+  mutate(Local8=Locality, x=E, y=N) %>%
+  dplyr::select(Local8, x, y)
+
+depth_with_metadata_coordinates <- depth_with_metadata %>%
+  dplyr::select(Sample_ID, Local8) %>%
+  mutate(Local8 = str_replace(Local8, "Scotland", "Isle of May")) %>%
+  left_join(coordinates, by="Local8")
+
+depth_with_metadata_coordinates <- depth_with_metadata_coordinates %>%
+  mutate(ending="_nuDNA_aligned_sorted") %>%
+  unite(Sample_ID,Sample_ID, ending, sep = "" )
+
+sample_names <- as.tibble(sample_names) %>%
+  filter(value != "FORMAT")
+
+sample_coords <- sample_names %>%
+  rename(Sample_ID=value) %>%
+  left_join(depth_with_metadata_coordinates, by="Sample_ID") %>%
+  dplyr::select(Sample_ID,x,y)
+```
+
+
+```{r}
+#Create a raster layer
+sample_coords <- sample_coords %>%
+  dplyr::select(x,y)
+
+lyr <- sample_coords %>%
+  dplyr::select(x,y) %>%
+  coords_to_raster(, buffer = 5, disagg = 4, plot = TRUE)
+
+# Define the new extent
+new_extent <- ext(-80, 50, 38, 80)
+# Set the new extent to the raster
+lyr_new_extent <- extend(lyr, new_extent)
+
+r <- sample_coords %>%
+  dplyr::select(x,y) %>%
+  coords_to_raster(, buffer = 5, disagg = 4, plot = TRUE,)
+```
+
+
+```{r}
+wgd <- window_gd(vcf,
+  sample_coords,
+  lyr_new_extent ,
+  stat = "pi",
+  wdim = 3,
+  fact = 3,
+  rarify = TRUE
+) 
+```
+
+```{r}
+ggplot_gd(wgd)
+
+new_ext <- ext(-80, 50, 38, 80)
+
+# Extend raster to this new extent
+wgd_extended <- extend(wgd, new_ext)
+
+ggplot_gd(wgd_extended)
+```
+
+
+```{r}
+ggplot_count(wgd_extended) +
+  ggtitle("Moving window sample counts")
+```
+
+```{r}
+library(terra)
+kgd <- krig_gd(wgd_extended, lyr_new_extent, index = 1, disagg_grd = 2)
+ggplot_gd(kgd)
+
+```
+
+
+```{r}
+map <- read_excel("~/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/grey.seal.map.data.xlsx")
+aquamaps <- map
+
+ggplot() + 
+  geom_tile(data = aquamaps, 
+            aes(x = `Center Long`, y = `Center Lat`, fill = `Overall Probability`)) +
+  geom_point(data = t2, aes(x = E, y = N), size = 2, alpha = 1, color = "red") +
+  scale_fill_viridis_c(na.value = "white") +  # Fills missing areas with white
+  theme_minimal()
+
+aquamaps <- aquamaps %>%
+  dplyr::select(`Center Long`,`Center Lat`,`Overall Probability`)
+r <- rast(aquamaps, type = "xyz", crs = "EPSG:4326")
+
+plot(r, main = "Aquamaps Raster")
+
+```
+
+```{r}
+r_new_aligned <- terra::resample(r, kgd, method = "bilinear")
+kgd_masked <- terra::mask(kgd,r_new_aligned)
+plot(kgd_masked)
+#Morgan
+```
+
+```{r}
+ggplot_gd(kgd_masked) +
+  ggtitle("Kriged pi")  +
+geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "#F5F5F5", inherit.aes = FALSE) +
+  #geom_point(data = t2, aes(x = E, y = N, shape = Locality), size = 2, alpha = 1) +
+  geom_point(data = t2, aes(x = E, y = N), size = 1, alpha = 0.5, color="red") +
+    scale_shape_manual(values = shape_map) +
+    #coord_sf(crs = "+proj=moll") +
+    #expand_limits(x = world_map$long, y = world_map$lat) +
+    theme(panel.background = element_rect(fill = "white"),
+          plot.background = element_rect(fill = "white")) +
+    coord_cartesian(xlim = c(-80, 50), ylim = c(40, 70)) +
+  scale_fill_viridis_c()
+```
+
+
+```{r}
+multistat_wgd <- window_gd(vcf,
+  sample_coords,
+  lyr_new_extent ,
+  stat = c("pi","Ho","biallelic_richness"),
+  wdim = 3,
+  fact = 3,
+  rarify = TRUE
+) 
+
+
+```
+
+
+```{r}
+ggplot_gd(multistat_wgd)
+new_ext <- ext(-80, 50, 38, 80)
+
+# Extend raster to this new extent
+multistat_wgd_extended <- extend(multistat_wgd, new_ext)
+
+```
+
+
+```{r}
+#Nucleotide diversity
+kgd_pi <- krig_gd(multistat_wgd_extended, lyr_new_extent, index = 1, disagg_grd = 2)
+#Heterozygosity
+kgd_ho <- krig_gd(multistat_wgd_extended, lyr_new_extent, index = 2, disagg_grd = 2)
+#Allelic richness
+kgd_richness <- krig_gd(multistat_wgd_extended, lyr_new_extent, index = 3, disagg_grd = 2)
+```
+
+
+```{r}
+ggplot_gd(kgd_pi)
+ggplot_gd(kgd_ho)
+ggplot_gd(kgd_richness)
+```
+
+```{r}
+r_new_aligned <- terra::resample(r, kgd_pi, method = "bilinear")
+kgd_pi_masked <- terra::mask(kgd_pi,r_new_aligned)
+
+
+r_new_aligned <- terra::resample(r, kgd_ho, method = "bilinear")
+kgd_ho_masked <- terra::mask(kgd_ho,r_new_aligned)
+
+
+r_new_aligned <- terra::resample(r, kgd_richness, method = "bilinear")
+kgd_richness_masked <- terra::mask(kgd_richness,r_new_aligned)
+```
+
+
+
+```{r}
+ggplot_gd(kgd_pi_masked)+
+  scale_fill_viridis_c()
+
+Plot_Pi <- ggplot_gd(kgd_pi_masked) +
+  ggtitle("Kriged pi")  +
+geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "black", inherit.aes = FALSE) +
+  #geom_point(data = t2, aes(x = E, y = N, shape = Locality), size = 2, alpha = 1) +
+  #geom_point(data = t2, aes(x = E, y = N), size = 1, alpha = 0.5, color="red") +
+    scale_shape_manual(values = shape_map) +
+    coord_sf(crs = "+proj=longlat") +
+    #expand_limits(x = world_map$long, y = world_map$lat) +
+    theme(panel.background = element_rect(fill = "white"),
+          plot.background = element_rect(fill = "white")) +
+  scale_fill_viridis_c(name = expression(bold(pi)))
+  
+
+
+ggplot_gd(kgd_ho_masked)+
+  scale_fill_viridis_c()
+
+Plot_ho <- ggplot_gd(kgd_ho_masked) +
+  ggtitle("Kriged pi")  +
+geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "black", inherit.aes = FALSE) +
+  #geom_point(data = t2, aes(x = E, y = N, shape = Locality), size = 2, alpha = 1) +
+  #geom_point(data = t2, aes(x = E, y = N), size = 1, alpha = 0.5, color="red") +
+    scale_shape_manual(values = shape_map) +
+    coord_sf(crs = "+proj=longlat") +
+    #expand_limits(x = world_map$long, y = world_map$lat) +
+    theme(panel.background = element_rect(fill = "white"),
+          plot.background = element_rect(fill = "white")) +
+  scale_fill_viridis_c(name = expression(bold(H)[bold(O)]))
+
+ggplot_gd(kgd_richness_masked)+
+  scale_fill_viridis_c()
+
+
+Plot_richness <- ggplot_gd(kgd_richness_masked) +
+  ggtitle("Kriged pi")  +
+geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "black", inherit.aes = FALSE) +
+  #geom_point(data = t2, aes(x = E, y = N, shape = Locality), size = 2, alpha = 1) +
+  #geom_point(data = t2, aes(x = E, y = N), size = 1, alpha = 0.5, color="red") +
+    scale_shape_manual(values = shape_map) +
+    coord_sf(crs = "+proj=longlat") +
+    #expand_limits(x = world_map$long, y = world_map$lat) +
+    theme(panel.background = element_rect(fill = "white"),
+          plot.background = element_rect(fill = "white")) +
+    #coord_cartesian(xlim = c(-80, 50), ylim = c(40, 70))#
+  scale_fill_viridis_c(name = expression(bold(A)[bold(R)]))
+```
+
+
+```{r}
+colony_map <- ggplot() +
+  geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "black", inherit.aes = FALSE) +
+  #geom_point(data = t2, aes(x = E, y = N, shape = Locality), size = 2, alpha = 1) +
+  geom_point(data = t2, aes(x = E, y = N), size = 1, alpha = 1, color="red") +
+    scale_shape_manual(values = shape_map) +
+    coord_sf(crs = "+proj=longlat") +
+    #expand_limits(x = world_map$long, y = world_map$lat) +
+    theme(panel.background = element_rect(fill = "white"),
+          plot.background = element_rect(fill = "white")) 
+```
+
+
+```{r}
+library(ggpubr)
+Plot_Pi <- Plot_Pi + ggtitle(NULL)
+Plot_richness <- Plot_richness + ggtitle(NULL)
+Plot_ho <- Plot_ho + ggtitle(NULL)
+
+library(patchwork)
+
+#wingen_final <- (Plot_Pi / Plot_richness / Plot_ho) +
+#  plot_annotation(
+#    tag_levels = 'A') &
+#    theme(plot.tag = element_text(face = 'bold'))
+
+colony_map <- ggplot() +
+  geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "black", inherit.aes = FALSE) +
+  geom_point(data = t2, aes(x = E, y = N), size = 2, alpha = 1, fill="#C70039", color="#A7C7E7",shape=21) +
+  coord_sf(crs = "+proj=longlat", xlim = c(-79.99, 50.01), ylim = c(36.36, 80.11)) +
+  theme(
+    panel.background = element_rect(fill = "white"),
+    plot.background = element_rect(fill = "white"),
+    axis.text = element_blank(),  # Remove axis labels (lat/lon)
+    axis.ticks = element_blank(), # Remove axis ticks
+    axis.title = element_blank()  # Remove axis titles
+  ) +
+  easy_remove_legend()
+
+wingen_final <- ((colony_map / Plot_Pi) | (Plot_richness / Plot_ho)) +
+  plot_annotation(
+    tag_levels = 'A') &
+    theme(plot.tag = element_text(face = 'bold'))
+
+
+#wingen_colony_map <- (wingen_final | colony_map) +
+#  plot_annotation(
+#    tag_levels = 'A') &
+#    theme(plot.tag = element_text(face = 'bold'))
+
+#colony_map <- colony_map + 
+#  plot_annotation(tag_levels = 'A') + 
+#  theme(plot.tag = element_text(face = 'bold'))
+```
+
+
+```{r}
+#Version with aquamaps
+SDM <- ggplot() + 
+  geom_tile(data = aquamaps, 
+            aes(x = `Center Long`, y = `Center Lat`, fill = `Overall Probability`)) +
+  geom_map(data = world_map, aes(map_id = region), map = world_map, fill = "black", inherit.aes = FALSE) +
+  geom_point(data = t2, aes(x = E, y = N), size = 2, alpha = 1, fill="#C70039", color="#A7C7E7",shape=21) +
+  coord_sf(crs = "+proj=longlat", xlim = c(-77.5, 50.01), ylim = c(36.36, 80.11)) +
+  scale_fill_viridis_c(na.value = "white") +  # Fills missing areas with white 
+  theme(
+    panel.background = element_rect(fill = "white"),
+    plot.background = element_rect(fill = "white"),
+    axis.text = element_blank(),  # Remove axis labels (lat/lon)
+    axis.ticks = element_blank(), # Remove axis ticks
+    axis.title = element_blank()  # Remove axis titles
+  ) +
+  scale_fill_viridis_c(name =  expression(bold('occurence\nprobability')))
+
+
+wingen_final <- ((SDM / Plot_Pi) | (Plot_richness / Plot_ho)) +
+  plot_annotation(
+    tag_levels = 'A') &
+    theme(plot.tag = element_text(face = 'bold'))
+
+wingen_final <- ((SDM / Plot_Pi) | (Plot_richness / Plot_ho)) +
+  plot_annotation(tag_levels = 'A') &
+  theme(
+    plot.tag = element_text(face = 'bold'),
+    plot.margin = unit(c(0, 0, 0, 0), "pt")  # removes margins from individual plots
+  )
+
+ggsave("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/Figures/wingen_final.test.png", wingen_final, width = 10, height = 8, dpi = 300, bg = "white")
+
+
+```
+
+
+```{r}
+ggsave(plot = wingen_final, filename = "/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/Figures/wingen_final.svg", device = "svg", width = 7, height = 7, units = "in")
+ggsave(plot = wingen_final, filename = "/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/Figures/wingen_final.pdf", device = "pdf", width = 7, height = 7, units = "in")
+ggsave(plot = wingen_final, filename = "/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/Figures/wingen_final.png", device = "png", width = 7, height = 7, units = "in")
+
+
+SDM
+ggsave(plot = SDM, filename = "/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/Molecular Ecology Submission/Resubmission/Figures/SDM.svg", device = "svg", width = 5, height = 5, units = "in")
+Plot_Pi
+Plot_richness
+Plot_ho
+                  
+                  
+```
+
