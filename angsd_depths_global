@@ -1,7 +1,7 @@
 module load angsd
 
 
-output=angsd.depths.global.no.shetland
+output=angsd.depths.global
 chrs=autosomes.txt
 ref=Halichoerus_grypus_HiC.fasta
 bamlist=bam_list
