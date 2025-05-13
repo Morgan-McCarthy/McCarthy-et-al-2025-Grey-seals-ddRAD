@@ -9,4 +9,4 @@ pcangsd -beagle $beagle_file -inbreedSites -e $e -threads 5 -o $output/hwe_globa
 
 beagle_file=gl.global.beagle.gz
 e=3
-pcangsd -beagle $beagle_file -e $e -hwe $output/hwe_global_loci_e3.lrt.sites.npy -hwe_tole 1e-6 -o pcangsd.HWE.global.loci.results
+pcangsd -beagle $beagle_file -e $e -hwe $output/hwe_global_loci_e3.lrt.sites.npy -hwe_tole 1e-6 -sites_save -o pcangsd.HWE.global.loci.results
