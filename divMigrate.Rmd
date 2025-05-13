@@ -48,7 +48,7 @@ library(vcfR)
 library(adegenet)
 
 #Read in the vcf file
-vcf <- read.vcfR("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/angsd2vcf_no_shetland_output_no_HG589.vcf.recode.vcf")
+vcf <- read.vcfR("/Users/morganmccarthy/Documents/Manuscripts/2022/Grey seal/ddRAD/angsd2vcf.recode.vcf")
 
 samples_to_drop <- c("D01638_nuDNA_aligned_sorted", "D05320_nuDNA_aligned_sorted", "D00579_nuDNA_aligned_sorted")
 
