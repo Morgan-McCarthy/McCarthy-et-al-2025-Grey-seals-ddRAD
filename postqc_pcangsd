@@ -4,6 +4,6 @@ conda activate /projects/mjolnir1/apps/conda/pcangsd-0.98.2
 beagle_file=postqc.gl.beagle.gz
 output=postqc
 
-pcangsd -beagle $beagle_file -threads 5 -o $output/postqc_global_no_shetland
+pcangsd -beagle $beagle_file -threads 5 -o $output/postqc_global
 
 #This command was repeated for each dataset
